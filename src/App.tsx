@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Maximize2, RotateCcw, Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { Grid3X3, Maximize2, Puzzle, RotateCcw, Shapes, Sparkles, Volume2, VolumeX, WandSparkles } from 'lucide-react'
 import { BUILD_LAYOUTS, type BuildMode } from './game/layouts'
 import { PIECES, SHAPE_PATHS, TILE_PATH, type FoamPiece } from './game/pieces'
 
@@ -8,6 +8,7 @@ type PiecePositions = Record<string, { base: Point; shape: Point; tile: Point }>
 type DragKind = 'base' | 'shape' | 'tile'
 type ActiveDrag = { id: string; kind: DragKind; pointerId: number; dx: number; dy: number }
 type Burst = { id: number; x: number; y: number; big: boolean }
+type Activity = 'match' | 'pair' | 'mat' | 'make'
 
 const INITIAL_POSITIONS = Object.fromEntries(
   PIECES.map((piece) => [
@@ -21,9 +22,17 @@ const INITIAL_POSITIONS = Object.fromEntries(
 ) as PiecePositions
 
 const BUILD_STARTS: Point[] = [
-  { x: 9, y: 15 }, { x: 27, y: 12 }, { x: 47, y: 13 }, { x: 68, y: 12 }, { x: 89, y: 16 },
-  { x: 10, y: 86 }, { x: 29, y: 88 }, { x: 69, y: 88 }, { x: 90, y: 84 },
+  { x: 8, y: 13 }, { x: 25, y: 11 }, { x: 42, y: 12 }, { x: 59, y: 11 }, { x: 76, y: 12 }, { x: 92, y: 15 },
+  { x: 8, y: 88 }, { x: 25, y: 90 }, { x: 42, y: 89 }, { x: 59, y: 90 }, { x: 76, y: 89 }, { x: 92, y: 86 },
 ]
+
+const PAIR_POSITIONS = Object.fromEntries(
+  PIECES.map((piece) => [piece.id, {
+    base: { x: 30, y: 51 },
+    shape: { x: 70, y: 51 },
+    tile: { x: 30, y: 51 },
+  }]),
+) as PiecePositions
 
 const MODE_LABELS: Record<BuildMode, string> = {
   mat: 'Build a mat',
@@ -36,6 +45,7 @@ function App() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const [phase, setPhase] = useState<'match' | 'build'>('match')
+  const [activity, setActivity] = useState<Activity>('match')
   const [positions, setPositions] = useState<PiecePositions>(INITIAL_POSITIONS)
   const [paired, setPaired] = useState<Set<string>>(() => new Set())
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
@@ -44,6 +54,9 @@ function App() {
   const [buildMode, setBuildMode] = useState<BuildMode>('mat')
   const [placed, setPlaced] = useState<Record<string, number>>({})
   const [showBuildChoice, setShowBuildChoice] = useState(false)
+  const [showMakeChoice, setShowMakeChoice] = useState(false)
+  const [pairIndex, setPairIndex] = useState(0)
+  const [showPairComplete, setShowPairComplete] = useState(false)
 
   const pairedCount = paired.size
   const placedCount = Object.keys(placed).length
@@ -132,8 +145,16 @@ function App() {
     setPositions((all) => ({ ...all, [drag.id]: { ...all[drag.id], tile: tilePoint } }))
     setPaired((currentPaired) => new Set(currentPaired).add(drag.id))
     celebrate(tilePoint, nextCount === PIECES.length)
-    if (nextCount === PIECES.length) window.setTimeout(() => setShowBuildChoice(true), 900)
-  }, [celebrate, pairedCount, positions])
+    if (activity === 'pair') {
+      if (nextCount === PIECES.length) {
+        window.setTimeout(() => setShowPairComplete(true), 900)
+      } else {
+        window.setTimeout(() => setPairIndex((current) => current + 1), 650)
+      }
+    } else if (nextCount === PIECES.length) {
+      window.setTimeout(() => setShowBuildChoice(true), 900)
+    }
+  }, [activity, celebrate, pairedCount, positions])
 
   const finishBuildDrag = useCallback((drag: ActiveDrag) => {
     const point = positions[drag.id].tile
@@ -167,7 +188,9 @@ function App() {
   const enterBuild = useCallback((mode: BuildMode) => {
     setBuildMode(mode)
     setPhase('build')
+    setActivity(mode === 'mat' ? 'mat' : 'make')
     setShowBuildChoice(false)
+    setShowMakeChoice(false)
     setPlaced({})
     setPositions((current) => {
       const next = { ...current }
@@ -180,6 +203,7 @@ function App() {
 
   const switchBuildMode = useCallback((mode: BuildMode) => {
     setBuildMode(mode)
+    setActivity(mode === 'mat' ? 'mat' : 'make')
     setPlaced({})
     setPositions((current) => {
       const next = { ...current }
@@ -192,28 +216,67 @@ function App() {
 
   const reset = useCallback(() => {
     if (phase === 'match') {
-      setPositions(INITIAL_POSITIONS)
+      setPositions(activity === 'pair' ? PAIR_POSITIONS : INITIAL_POSITIONS)
       setPaired(new Set())
+      setPairIndex(0)
+      setShowPairComplete(false)
       setShowBuildChoice(false)
     } else {
       switchBuildMode(buildMode)
     }
-  }, [buildMode, phase, switchBuildMode])
+  }, [activity, buildMode, phase, switchBuildMode])
 
   const startOver = useCallback(() => {
     setPhase('match')
+    setActivity('match')
     setPositions(INITIAL_POSITIONS)
     setPaired(new Set())
     setPlaced({})
     setShowBuildChoice(false)
+    setShowMakeChoice(false)
+    setShowPairComplete(false)
+    setPairIndex(0)
   }, [])
+
+  const selectActivity = useCallback((nextActivity: Activity) => {
+    setActiveDrag(null)
+    setPlaced({})
+    setShowBuildChoice(false)
+    setShowMakeChoice(false)
+    setShowPairComplete(false)
+
+    if (nextActivity === 'match') {
+      setActivity('match')
+      setPhase('match')
+      setPaired(new Set())
+      setPairIndex(0)
+      setPositions(INITIAL_POSITIONS)
+      return
+    }
+
+    if (nextActivity === 'pair') {
+      setActivity('pair')
+      setPhase('match')
+      setPaired(new Set())
+      setPairIndex(0)
+      setPositions(PAIR_POSITIONS)
+      return
+    }
+
+    if (nextActivity === 'mat') {
+      enterBuild('mat')
+      return
+    }
+
+    setShowMakeChoice(true)
+  }, [enterBuild])
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen()
     else void document.documentElement.requestFullscreen?.()
   }, [])
 
-  const title = phase === 'match' ? 'Match the pieces' : MODE_LABELS[buildMode]
+  const title = activity === 'match' ? 'Match the pieces' : activity === 'pair' ? 'Pair' : activity === 'mat' ? 'Build a mat' : MODE_LABELS[buildMode]
   const progress = phase === 'match' ? `${pairedCount} / ${PIECES.length}` : `${placedCount} / ${PIECES.length}`
 
   return (
@@ -239,28 +302,20 @@ function App() {
         </nav>
       </header>
 
-      {phase === 'build' ? (
-        <div className="mode-switcher" aria-label="Choose what to build">
-          {(Object.keys(MODE_LABELS) as BuildMode[]).map((mode) => (
-            <button key={mode} className={mode === buildMode ? 'selected' : ''} onClick={() => switchBuildMode(mode)}>
-              <ModeIcon mode={mode} />
-              <span>{MODE_LABELS[mode]}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <ActivitySwitcher activity={activity} onSelect={selectActivity} />
 
       <section
         ref={canvasRef}
-        className={`play-canvas ${phase} ${activeDrag ? 'is-dragging' : ''}`}
+        className={`play-canvas ${phase} ${activity} ${activeDrag ? 'is-dragging' : ''}`}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={() => setActiveDrag(null)}
-        aria-label={phase === 'match' ? 'Match each loose shape with its foam base' : `Build a ${buildMode} with completed foam tiles`}
+        aria-label={activity === 'match' ? 'Match each loose shape with its foam base' : activity === 'pair' ? `Pair ${PIECES[pairIndex].name}` : `Build a ${buildMode} with completed foam tiles`}
       >
         {phase === 'build' ? <BuildGuide mode={buildMode} placed={placed} /> : null}
 
         {PIECES.map((piece, index) => {
+          if (activity === 'pair' && index !== pairIndex) return null
           if (phase === 'match' && !paired.has(piece.id)) {
             return (
               <MatchPieces
@@ -298,13 +353,34 @@ function App() {
         ) : null}
 
         {showBuildChoice ? <BuildChooser onChoose={enterBuild} /> : null}
+        {showMakeChoice ? <MakeChooser onChoose={enterBuild} onClose={() => setShowMakeChoice(false)} /> : null}
+        {showPairComplete ? <PairCompletionCard onAgain={() => selectActivity('pair')} onNext={() => selectActivity('mat')} /> : null}
         {buildComplete ? <CompletionCard mode={buildMode} onAgain={() => switchBuildMode(buildMode)} onStartOver={startOver} /> : null}
       </section>
 
       <p className="play-hint">
-        {phase === 'match' ? 'Pull a base and its matching shape together.' : 'Drag each completed tile onto the glowing guide.'}
+        {activity === 'match' ? 'Find every matching base and shape.' : activity === 'pair' ? `Pair ${pairIndex + 1} of ${PIECES.length}: pull the two pieces together.` : activity === 'mat' ? 'Connect all twelve completed tiles into the 4 × 3 mat.' : `Place the completed tiles to make a ${buildMode}.`}
       </p>
     </main>
+  )
+}
+
+function ActivitySwitcher({ activity, onSelect }: { activity: Activity; onSelect: (activity: Activity) => void }) {
+  const activities: Array<{ id: Activity; label: string; icon: React.ReactNode }> = [
+    { id: 'match', label: 'Match', icon: <Shapes aria-hidden="true" /> },
+    { id: 'pair', label: 'Pair', icon: <Puzzle aria-hidden="true" /> },
+    { id: 'mat', label: 'Build a mat', icon: <Grid3X3 aria-hidden="true" /> },
+    { id: 'make', label: 'Make something', icon: <WandSparkles aria-hidden="true" /> },
+  ]
+  return (
+    <nav className="activity-switcher" aria-label="Choose an activity">
+      {activities.map((item) => (
+        <button key={item.id} className={item.id === activity ? 'selected' : ''} onClick={() => onSelect(item.id)}>
+          {item.icon}
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -430,6 +506,44 @@ function BuildChooser({ onChoose }: { onChoose: (mode: BuildMode) => void }) {
               <span>{MODE_LABELS[mode]}</span>
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MakeChooser({ onChoose, onClose }: { onChoose: (mode: BuildMode) => void; onClose: () => void }) {
+  const modes: Array<Exclude<BuildMode, 'mat'>> = ['house', 'castle', 'bridge']
+  return (
+    <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="make-title">
+      <div className="chooser-card make-chooser-card">
+        <div className="chooser-stars">★ <span>★</span> ★</div>
+        <h2 id="make-title">Make something!</h2>
+        <p>Pick a picture, then place the twelve completed tiles.</p>
+        <div className="build-options make-options">
+          {modes.map((mode) => (
+            <button key={mode} onClick={() => onChoose(mode)}>
+              <ModeIcon mode={mode} />
+              <span>{MODE_LABELS[mode]}</span>
+            </button>
+          ))}
+        </div>
+        <button className="chooser-close" onClick={onClose}>Back to the game</button>
+      </div>
+    </div>
+  )
+}
+
+function PairCompletionCard({ onAgain, onNext }: { onAgain: () => void; onNext: () => void }) {
+  return (
+    <div className="overlay completion-overlay" role="dialog" aria-modal="true" aria-labelledby="pair-complete-title">
+      <div className="chooser-card completion-card">
+        <div className="trophy">★</div>
+        <h2 id="pair-complete-title">Perfect pairs!</h2>
+        <p>Rudy paired all twelve shapes and bases.</p>
+        <div className="completion-actions">
+          <button className="primary" onClick={onNext}>Build the mat</button>
+          <button onClick={onAgain}>Pair them again</button>
         </div>
       </div>
     </div>
