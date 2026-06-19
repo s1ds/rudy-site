@@ -244,19 +244,44 @@ button { font: inherit; }
 .completed-object.draggable { z-index: 9; }
 
 .foam-face {
-  stroke: rgba(43, 39, 35, .22);
-  stroke-width: .7;
+  stroke: rgba(43, 39, 35, .18);
+  stroke-width: .65;
   stroke-linejoin: round;
 }
-.foam-side { stroke: rgba(43, 39, 35, .18); stroke-width: .8; stroke-linejoin: round; }
-.hole-rim { fill: transparent; stroke: rgba(42, 32, 25, .3); stroke-width: 3.6; filter: drop-shadow(0 2px 1px rgba(0,0,0,.15)); }
-.insert-shadow { fill: rgba(25,20,15,.22); filter: blur(1px); }
-.insert { stroke-width: 1.2; filter: drop-shadow(0 1px 0 rgba(255,255,255,.25)); }
-
-.foam-object svg::after { content: ''; }
-
-.foam-face, .foam-side {
-  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.08) 0 1px, transparent 1px 4px);
+.foam-side { stroke: rgba(43, 39, 35, .2); stroke-width: .75; stroke-linejoin: round; }
+.foam-texture { pointer-events: none; opacity: .96; stroke: none; }
+.foam-edge-highlight,
+.shape-edge-highlight {
+  fill: none;
+  stroke: rgba(255,255,255,.34);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  transform: translateY(-.35px);
+  pointer-events: none;
+}
+.shape-edge-highlight { stroke-width: 1.35; }
+.hole-depth {
+  fill: none;
+  stroke: rgba(34,25,18,.34);
+  stroke-width: 4.8;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+}
+.hole-highlight {
+  fill: none;
+  stroke: rgba(255,255,255,.45);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.insert-bed { stroke: rgba(31,25,19,.24); stroke-width: 2.2; stroke-linejoin: round; }
+.insert { stroke-width: .7; }
+.insert-texture { opacity: .68; }
+.insert-seam {
+  fill: none;
+  stroke: rgba(37,29,22,.34);
+  stroke-width: 1.35;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 -.55px .25px rgba(255,255,255,.38));
 }
 
 .build-guide { position: absolute; inset: 0; z-index: 1; pointer-events: none; }

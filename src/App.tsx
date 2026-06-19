@@ -34,6 +34,29 @@ const PAIR_POSITIONS = Object.fromEntries(
   }]),
 ) as PiecePositions
 
+function readInitialRoute(): { activity: Activity; phase: 'match' | 'build'; mode: BuildMode } {
+  const params = new URLSearchParams(window.location.search)
+  const requestedActivity = params.get('activity')
+  const requestedMode = params.get('mode')
+  if (requestedActivity === 'pair') return { activity: 'pair', phase: 'match', mode: 'mat' }
+  if (requestedActivity === 'mat') return { activity: 'mat', phase: 'build', mode: 'mat' }
+  if (requestedActivity === 'make') {
+    const mode: BuildMode = requestedMode === 'castle' || requestedMode === 'bridge' ? requestedMode : 'house'
+    return { activity: 'make', phase: 'build', mode }
+  }
+  return { activity: 'match', phase: 'match', mode: 'mat' }
+}
+
+const INITIAL_ROUTE = readInitialRoute()
+
+function buildStartingPositions() {
+  const positions = structuredClone(INITIAL_POSITIONS)
+  PIECES.forEach((piece, index) => {
+    positions[piece.id].tile = BUILD_STARTS[index]
+  })
+  return positions
+}
+
 const MODE_LABELS: Record<BuildMode, string> = {
   mat: 'Build a mat',
   house: 'House',
@@ -44,14 +67,14 @@ const MODE_LABELS: Record<BuildMode, string> = {
 function App() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
-  const [phase, setPhase] = useState<'match' | 'build'>('match')
-  const [activity, setActivity] = useState<Activity>('match')
-  const [positions, setPositions] = useState<PiecePositions>(INITIAL_POSITIONS)
+  const [phase, setPhase] = useState<'match' | 'build'>(INITIAL_ROUTE.phase)
+  const [activity, setActivity] = useState<Activity>(INITIAL_ROUTE.activity)
+  const [positions, setPositions] = useState<PiecePositions>(() => INITIAL_ROUTE.activity === 'pair' ? structuredClone(PAIR_POSITIONS) : INITIAL_ROUTE.phase === 'build' ? buildStartingPositions() : structuredClone(INITIAL_POSITIONS))
   const [paired, setPaired] = useState<Set<string>>(() => new Set())
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
   const [soundOn, setSoundOn] = useState(true)
   const [bursts, setBursts] = useState<Burst[]>([])
-  const [buildMode, setBuildMode] = useState<BuildMode>('mat')
+  const [buildMode, setBuildMode] = useState<BuildMode>(INITIAL_ROUTE.mode)
   const [placed, setPlaced] = useState<Record<string, number>>({})
   const [showBuildChoice, setShowBuildChoice] = useState(false)
   const [showMakeChoice, setShowMakeChoice] = useState(false)
@@ -436,32 +459,66 @@ function DraggableTile({ piece, index, position, rotation, active, onPointerDown
 
 function FoamBase({ piece }: { piece: FoamPiece }) {
   const compoundPath = `${TILE_PATH} ${SHAPE_PATHS[piece.shape]}`
+  const materialId = `base-${piece.id}`
   return (
     <svg viewBox="0 0 100 104" role="img" aria-hidden="true">
-      <path className="foam-side" d={compoundPath} fillRule="evenodd" transform="translate(0 4)" style={{ fill: shade(piece.baseColor, -24) }} />
-      <path className="foam-face" d={compoundPath} fillRule="evenodd" style={{ fill: piece.baseColor }} />
-      <path className="hole-rim" d={SHAPE_PATHS[piece.shape]} />
+      <FoamDefs id={materialId} color={piece.baseColor} />
+      <path className="foam-side" d={compoundPath} fillRule="evenodd" transform="translate(0 5.5)" style={{ fill: shade(piece.baseColor, -25) }} />
+      <path className="foam-face" d={compoundPath} fillRule="evenodd" style={{ fill: `url(#${materialId}-gradient)` }} />
+      <path className="foam-texture" d={compoundPath} fillRule="evenodd" style={{ fill: `url(#${materialId}-texture)` }} />
+      <path className="foam-edge-highlight" d={TILE_PATH} />
+      <path className="hole-depth" d={SHAPE_PATHS[piece.shape]} transform="translate(0 1.6)" />
+      <path className="hole-highlight" d={SHAPE_PATHS[piece.shape]} transform="translate(0 -0.8)" />
     </svg>
   )
 }
 
 function FoamShape({ piece }: { piece: FoamPiece }) {
+  const materialId = `shape-${piece.id}`
   return (
     <svg viewBox="0 0 100 104" role="img" aria-hidden="true">
-      <path className="foam-side" d={SHAPE_PATHS[piece.shape]} transform="translate(0 5)" style={{ fill: shade(piece.shapeColor, -25) }} />
-      <path className="foam-face" d={SHAPE_PATHS[piece.shape]} style={{ fill: piece.shapeColor }} />
+      <FoamDefs id={materialId} color={piece.shapeColor} />
+      <path className="foam-side" d={SHAPE_PATHS[piece.shape]} transform="translate(0 6)" style={{ fill: shade(piece.shapeColor, -26) }} />
+      <path className="foam-face" d={SHAPE_PATHS[piece.shape]} style={{ fill: `url(#${materialId}-gradient)` }} />
+      <path className="foam-texture" d={SHAPE_PATHS[piece.shape]} style={{ fill: `url(#${materialId}-texture)` }} />
+      <path className="shape-edge-highlight" d={SHAPE_PATHS[piece.shape]} />
     </svg>
   )
 }
 
 function CompletedTile({ piece }: { piece: FoamPiece }) {
+  const baseMaterialId = `tile-base-${piece.id}`
+  const shapeMaterialId = `tile-shape-${piece.id}`
   return (
     <svg viewBox="0 0 100 104" role="img" aria-hidden="true">
-      <path className="foam-side" d={TILE_PATH} transform="translate(0 4)" style={{ fill: shade(piece.baseColor, -24) }} />
-      <path className="foam-face" d={TILE_PATH} style={{ fill: piece.baseColor }} />
-      <path className="insert-shadow" d={SHAPE_PATHS[piece.shape]} transform="translate(0 2)" />
-      <path className="foam-face insert" d={SHAPE_PATHS[piece.shape]} style={{ fill: piece.shapeColor }} />
+      <FoamDefs id={baseMaterialId} color={piece.baseColor} />
+      <FoamDefs id={shapeMaterialId} color={piece.shapeColor} />
+      <path className="foam-side" d={TILE_PATH} transform="translate(0 5.5)" style={{ fill: shade(piece.baseColor, -25) }} />
+      <path className="foam-face" d={TILE_PATH} style={{ fill: `url(#${baseMaterialId}-gradient)` }} />
+      <path className="foam-texture" d={TILE_PATH} style={{ fill: `url(#${baseMaterialId}-texture)` }} />
+      <path className="foam-edge-highlight" d={TILE_PATH} />
+      <path className="insert-bed" d={SHAPE_PATHS[piece.shape]} transform="translate(0 1.4)" style={{ fill: shade(piece.shapeColor, -20) }} />
+      <path className="foam-face insert" d={SHAPE_PATHS[piece.shape]} style={{ fill: `url(#${shapeMaterialId}-gradient)` }} />
+      <path className="foam-texture insert-texture" d={SHAPE_PATHS[piece.shape]} style={{ fill: `url(#${shapeMaterialId}-texture)` }} />
+      <path className="insert-seam" d={SHAPE_PATHS[piece.shape]} />
     </svg>
+  )
+}
+
+function FoamDefs({ id, color }: { id: string; color: string }) {
+  return (
+    <defs>
+      <linearGradient id={`${id}-gradient`} x1="0" y1="0" x2="0.78" y2="1">
+        <stop offset="0" stopColor={shade(color, 14)} />
+        <stop offset="0.48" stopColor={color} />
+        <stop offset="1" stopColor={shade(color, -12)} />
+      </linearGradient>
+      <pattern id={`${id}-texture`} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
+        <path d="M-1 1 L1 -1 M0 4 L4 0 M3 5 L5 3" stroke="#ffffff" strokeWidth="0.78" opacity="0.32" />
+        <path d="M0 2 H4" stroke="#18202a" strokeWidth="0.52" opacity="0.16" />
+        <circle cx="1.15" cy="1.1" r="0.45" fill="#ffffff" opacity="0.26" />
+      </pattern>
+    </defs>
   )
 }
 
