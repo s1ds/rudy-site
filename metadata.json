@@ -1,0 +1,6 @@
+{
+  "name": "Rudy's Shapes Bingo",
+  "description": "An educational shapes, colors, and pattern matching bingo game styled for kids, featuring adjustable accessibility controls and offline-friendly gameplay.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
