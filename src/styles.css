@@ -291,13 +291,13 @@ button { font: inherit; }
   height: var(--tile-size);
   opacity: .54;
   filter: drop-shadow(0 0 5px rgba(8,119,201,.25));
+  transform: translate(-50%, -50%) rotate(var(--target-rotate, 0deg));
+  transform-origin: center;
   animation: guidePulse 1.8s ease-in-out infinite;
 }
 .target-slot svg { width: 100%; height: 100%; overflow: visible; }
 .target-slot path { fill: rgba(8,119,201,.055); stroke: #68a9dd; stroke-width: 2.2; stroke-dasharray: 5 4; }
 .target-slot.filled { opacity: 0; animation: none; }
-.guide-outline { position: absolute; inset: 4% 10%; width: 80%; height: 92%; overflow: visible; }
-.guide-outline path { fill: rgba(8,119,201,.025); stroke: #7aaed7; stroke-width: 3; stroke-dasharray: 13 10; vector-effect: non-scaling-stroke; }
 
 .play-hint {
   margin: 6px auto 0;
@@ -436,7 +436,10 @@ button { font: inherit; }
 @keyframes cheer { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.2); } 22% { opacity: 1; transform: translate(-50%, -70%) scale(1.18); } 100% { opacity: 0; transform: translate(-50%, -170%) scale(.9); } }
 @keyframes settle { 0% { transform: translate(-50%, -58%) scale(1.2) rotate(4deg); } 100% { transform: translate(-50%, -50%) perspective(650px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) rotateZ(var(--rotate)); } }
 @keyframes cardIn { from { opacity: 0; transform: scale(.65) translateY(30px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes guidePulse { 0%, 100% { opacity: .36; transform: translate(-50%, -50%) scale(.96); } 50% { opacity: .7; transform: translate(-50%, -50%) scale(1.03); } }
+@keyframes guidePulse {
+  0%, 100% { opacity: .36; transform: translate(-50%, -50%) rotate(var(--target-rotate, 0deg)) scale(.96); }
+  50% { opacity: .7; transform: translate(-50%, -50%) rotate(var(--target-rotate, 0deg)) scale(1.03); }
+}
 @keyframes trophyBounce { to { transform: translateY(-6px) rotate(4deg); } }
 
 @media (max-width: 720px) {
@@ -467,7 +470,6 @@ button { font: inherit; }
   .make-options { grid-template-columns: repeat(3, 1fr); }
   .build-options button { min-height: 92px; }
   .chooser-card { border-radius: 26px; padding: 20px; }
-  .guide-outline { inset: 6% 3%; width: 94%; height: 88%; }
 }
 
 @media (max-width: 430px) and (orientation: portrait) {

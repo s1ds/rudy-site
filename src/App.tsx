@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Grid3X3, Maximize2, Puzzle, RotateCcw, Shapes, Sparkles, Volume2, VolumeX, WandSparkles } from 'lucide-react'
-import { BUILD_LAYOUTS, type BuildMode } from './game/layouts'
+import { resolveBuildLayout, type BuildMode, type Target } from './game/layouts'
 import { PIECES, SHAPE_PATHS, TILE_PATH, type FoamPiece } from './game/pieces'
 
 type Point = { x: number; y: number }
@@ -22,8 +22,8 @@ const INITIAL_POSITIONS = Object.fromEntries(
 ) as PiecePositions
 
 const BUILD_STARTS: Point[] = [
-  { x: 8, y: 13 }, { x: 25, y: 11 }, { x: 42, y: 12 }, { x: 59, y: 11 }, { x: 76, y: 12 }, { x: 92, y: 15 },
-  { x: 8, y: 88 }, { x: 25, y: 90 }, { x: 42, y: 89 }, { x: 59, y: 90 }, { x: 76, y: 89 }, { x: 92, y: 86 },
+  { x: 8, y: 10 }, { x: 8, y: 26 }, { x: 8, y: 42 }, { x: 8, y: 58 }, { x: 8, y: 74 }, { x: 8, y: 90 },
+  { x: 92, y: 10 }, { x: 92, y: 26 }, { x: 92, y: 42 }, { x: 92, y: 58 }, { x: 92, y: 74 }, { x: 92, y: 90 },
 ]
 
 const PAIR_POSITIONS = Object.fromEntries(
@@ -80,11 +80,49 @@ function App() {
   const [showMakeChoice, setShowMakeChoice] = useState(false)
   const [pairIndex, setPairIndex] = useState(0)
   const [showPairComplete, setShowPairComplete] = useState(false)
+  const [canvasMetrics, setCanvasMetrics] = useState({ width: 1200, height: 600, tileSize: 100 })
 
   const pairedCount = paired.size
   const placedCount = Object.keys(placed).length
   const allPaired = pairedCount === PIECES.length
   const buildComplete = placedCount === PIECES.length
+  const buildTargets = useMemo(
+    () => resolveBuildLayout(buildMode, canvasMetrics.width, canvasMetrics.height, canvasMetrics.tileSize),
+    [buildMode, canvasMetrics],
+  )
+
+  useLayoutEffect(() => {
+    if (phase !== 'build' || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const measure = () => {
+      const canvasRect = canvas.getBoundingClientRect()
+      const tileRect = canvas.querySelector<HTMLElement>('.completed-object')?.getBoundingClientRect()
+      if (!canvasRect.width || !canvasRect.height) return
+      const next = {
+        width: canvasRect.width,
+        height: canvasRect.height,
+        tileSize: tileRect?.width || canvasMetrics.tileSize,
+      }
+      setCanvasMetrics((current) => current.width === next.width && current.height === next.height && current.tileSize === next.tileSize ? current : next)
+    }
+    measure()
+    if (!window.ResizeObserver) return
+    const observer = new ResizeObserver(measure)
+    observer.observe(canvas)
+    return () => observer.disconnect()
+  }, [buildMode, phase, canvasMetrics.tileSize])
+
+  useLayoutEffect(() => {
+    if (phase !== 'build' || !Object.keys(placed).length) return
+    setPositions((current) => {
+      const next = { ...current }
+      Object.entries(placed).forEach(([id, targetIndex]) => {
+        const target = buildTargets[targetIndex]
+        next[id] = { ...next[id], tile: { x: target.x, y: target.y } }
+      })
+      return next
+    })
+  }, [buildTargets, phase, placed])
 
   const pointFromEvent = useCallback((event: React.PointerEvent): Point => {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -181,10 +219,11 @@ function App() {
 
   const finishBuildDrag = useCallback((drag: ActiveDrag) => {
     const point = positions[drag.id].tile
+    const previousTargetIndex = placed[drag.id]
     const occupied = new Set(Object.entries(placed).filter(([id]) => id !== drag.id).map(([, index]) => index))
     let nearest = -1
     let nearestDistance = Number.POSITIVE_INFINITY
-    BUILD_LAYOUTS[buildMode].forEach((target, index) => {
+    buildTargets.forEach((target, index) => {
       if (occupied.has(index)) return
       const distance = Math.hypot(point.x - target.x, point.y - target.y)
       if (distance < nearestDistance) {
@@ -192,14 +231,23 @@ function App() {
         nearestDistance = distance
       }
     })
-    if (nearest < 0 || nearestDistance > 13) return
+    if (nearest < 0 || nearestDistance > 13) {
+      if (previousTargetIndex !== undefined) {
+        const previousTarget = buildTargets[previousTargetIndex]
+        setPositions((all) => ({
+          ...all,
+          [drag.id]: { ...all[drag.id], tile: { x: previousTarget.x, y: previousTarget.y } },
+        }))
+      }
+      return
+    }
 
-    const target = BUILD_LAYOUTS[buildMode][nearest]
+    const target = buildTargets[nearest]
     const nextPlaced = { ...placed, [drag.id]: nearest }
     setPlaced(nextPlaced)
     setPositions((all) => ({ ...all, [drag.id]: { ...all[drag.id], tile: { x: target.x, y: target.y } } }))
     celebrate(target, Object.keys(nextPlaced).length === PIECES.length)
-  }, [buildMode, celebrate, placed, positions])
+  }, [buildTargets, celebrate, placed, positions])
 
   const endDrag = useCallback((event: React.PointerEvent) => {
     if (!activeDrag || activeDrag.pointerId !== event.pointerId) return
@@ -299,7 +347,7 @@ function App() {
     else void document.documentElement.requestFullscreen?.()
   }, [])
 
-  const title = activity === 'match' ? 'Match the pieces' : activity === 'pair' ? 'Pair' : activity === 'mat' ? 'Build a mat' : MODE_LABELS[buildMode]
+  const title = showMakeChoice ? 'Make something' : activity === 'match' ? 'Match the pieces' : activity === 'pair' ? 'Pair' : activity === 'mat' ? 'Build a mat' : MODE_LABELS[buildMode]
   const progress = phase === 'match' ? `${pairedCount} / ${PIECES.length}` : `${placedCount} / ${PIECES.length}`
 
   return (
@@ -312,7 +360,7 @@ function App() {
             <h1>{title}</h1>
           </div>
         </div>
-        <div className="progress" aria-label={`${phase === 'match' ? 'Pairs' : 'Tiles'} completed ${progress}`}>
+        <div className="progress" aria-live="polite" aria-label={`${phase === 'match' ? 'Pairs' : 'Tiles'} completed ${progress}`}>
           <span>{progress}</span>
           <small>{phase === 'match' ? 'PAIRS' : 'PLACED'}</small>
         </div>
@@ -325,7 +373,7 @@ function App() {
         </nav>
       </header>
 
-      <ActivitySwitcher activity={activity} onSelect={selectActivity} />
+      <ActivitySwitcher activity={showMakeChoice ? 'make' : activity} onSelect={selectActivity} />
 
       <section
         ref={canvasRef}
@@ -333,9 +381,9 @@ function App() {
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={() => setActiveDrag(null)}
-        aria-label={activity === 'match' ? 'Match each loose shape with its foam base' : activity === 'pair' ? `Pair ${PIECES[pairIndex].name}` : `Build a ${buildMode} with completed foam tiles`}
+        aria-label={showMakeChoice ? 'Choose something to make' : activity === 'match' ? 'Match each loose shape with its foam base' : activity === 'pair' ? `Pair ${PIECES[pairIndex].name}` : `Build a ${buildMode} with completed foam tiles`}
       >
-        {phase === 'build' ? <BuildGuide mode={buildMode} placed={placed} /> : null}
+        {phase === 'build' ? <BuildGuide mode={buildMode} placed={placed} targets={buildTargets} /> : null}
 
         {PIECES.map((piece, index) => {
           if (activity === 'pair' && index !== pairIndex) return null
@@ -353,7 +401,7 @@ function App() {
           if (phase === 'match' || phase === 'build') {
             const position = positions[piece.id].tile
             const targetIndex = placed[piece.id]
-            const targetRotation = targetIndex === undefined ? 0 : BUILD_LAYOUTS[buildMode][targetIndex].rotate ?? 0
+            const targetRotation = targetIndex === undefined ? 0 : buildTargets[targetIndex].rotate ?? 0
             return (
               <DraggableTile
                 key={piece.id}
@@ -382,7 +430,7 @@ function App() {
       </section>
 
       <p className="play-hint">
-        {activity === 'match' ? 'Find every matching base and shape.' : activity === 'pair' ? `Pair ${pairIndex + 1} of ${PIECES.length}: pull the two pieces together.` : activity === 'mat' ? 'Connect all twelve completed tiles into the 4 × 3 mat.' : `Place the completed tiles to make a ${buildMode}.`}
+        {showMakeChoice ? 'Choose a picture to build.' : activity === 'match' ? 'Find every matching base and shape.' : activity === 'pair' ? `Pair ${pairIndex + 1} of ${PIECES.length}: pull the two pieces together.` : activity === 'mat' ? 'Connect all twelve completed tiles into the 4 × 3 mat.' : `Place the completed tiles to make a ${buildMode}.`}
       </p>
     </main>
   )
@@ -398,7 +446,7 @@ function ActivitySwitcher({ activity, onSelect }: { activity: Activity; onSelect
   return (
     <nav className="activity-switcher" aria-label="Choose an activity">
       {activities.map((item) => (
-        <button key={item.id} className={item.id === activity ? 'selected' : ''} onClick={() => onSelect(item.id)}>
+        <button key={item.id} className={item.id === activity ? 'selected' : ''} aria-pressed={item.id === activity} onClick={() => onSelect(item.id)}>
           {item.icon}
           <span>{item.label}</span>
         </button>
@@ -522,31 +570,21 @@ function FoamDefs({ id, color }: { id: string; color: string }) {
   )
 }
 
-function BuildGuide({ mode, placed }: { mode: BuildMode; placed: Record<string, number> }) {
+function BuildGuide({ mode, placed, targets }: { mode: BuildMode; placed: Record<string, number>; targets: Target[] }) {
   const occupied = new Set(Object.values(placed))
   return (
     <div className={`build-guide ${mode}`} aria-hidden="true">
-      {mode !== 'mat' ? <GuideOutline mode={mode} /> : null}
-      {BUILD_LAYOUTS[mode].map((target, index) => (
+      {targets.map((target, index) => (
         <div
           key={`${mode}-${index}`}
           className={`target-slot ${occupied.has(index) ? 'filled' : ''}`}
-          style={{ left: `${target.x}%`, top: `${target.y}%`, transform: `translate(-50%, -50%) rotate(${target.rotate ?? 0}deg)` }}
+          style={{ left: `${target.x}%`, top: `${target.y}%`, '--target-rotate': `${target.rotate ?? 0}deg` } as React.CSSProperties}
         >
           <svg viewBox="0 0 100 100"><path d={TILE_PATH} /></svg>
         </div>
       ))}
     </div>
   )
-}
-
-function GuideOutline({ mode }: { mode: Exclude<BuildMode, 'mat'> }) {
-  const paths = {
-    house: 'M265 115 L500 18 L735 115 V540 H265 Z',
-    castle: 'M190 190 V78 H318 V140 H438 V54 H562 V140 H682 V78 H810 V190 V575 H190 Z',
-    bridge: 'M115 510 Q500 55 885 510 V590 H115 Z M260 510 Q500 238 740 510',
-  }
-  return <svg className="guide-outline" viewBox="0 0 1000 650" preserveAspectRatio="none"><path d={paths[mode]} /></svg>
 }
 
 function BuildChooser({ onChoose }: { onChoose: (mode: BuildMode) => void }) {
