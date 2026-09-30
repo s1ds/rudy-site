@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rudy Tangram Lab</title>
+  </head>
+  <body>
+    <style>
+      .rudy-header{position:relative;z-index:1000;padding:12px;background:#0f172a;color:white;border-bottom:4px solid #fcd34d;font-family:system-ui,sans-serif}
+      .rudy-header-inner{max-width:1024px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .rudy-title{margin:0;font-size:20px;font-weight:900;white-space:nowrap}.rudy-title span{color:#fcd34d}
+      .rudy-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+      .rudy-link{min-height:40px;padding:8px 12px;display:flex;align-items:center;justify-content:center;background:white;color:#0f172a;border:2px solid white;border-radius:12px;font-size:14px;font-weight:800;text-align:center;text-decoration:none}
+      .rudy-link:hover{background:#fde68a;border-color:#fde68a}.rudy-link[aria-current="page"]{color:#e2e8f0;background:#64748b;border-color:#94a3b8;pointer-events:none;cursor:default}
+      @media(max-width:680px){.rudy-header-inner{flex-direction:column}.rudy-title{font-size:18px}.rudy-nav{width:100%;grid-template-columns:repeat(2,1fr)}.rudy-link{padding:8px 6px;font-size:12px}}
+    </style>
+    <header class="rudy-header">
+      <div class="rudy-header-inner">
+        <p class="rudy-title"><span>&#9733;</span> Rudy's Online Games</p>
+        <nav class="rudy-nav" aria-label="Rudy's online games">
+          <a class="rudy-link" href="https://rudraveer.com/">Homepage</a>
+          <a class="rudy-link" href="https://rudraveer.com/shapes-mat/">Shapes Mat</a>
+          <a class="rudy-link" href="https://rudraveer.com/shapes-bingo/">Shapes Bingo</a>
+          <a class="rudy-link" href="https://rudraveer.com/tangram-lab/" aria-current="page" tabindex="-1">Tangram Lab</a>
+        </nav>
+      </div>
+    </header>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

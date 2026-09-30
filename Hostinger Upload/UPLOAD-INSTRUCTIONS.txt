@@ -1,0 +1,14 @@
+HOSTINGER UPLOAD PACKAGE
+
+1. Open Hostinger File Manager and enter your website's public_html folder.
+2. Upload the CONTENTS of this package's public_html folder into the live public_html folder.
+3. Allow these updated files to replace the existing homepage, Shapes Mat, and Shapes Bingo files.
+4. Confirm these URLs after upload:
+   https://rudraveer.com/
+   https://rudraveer.com/shapes-mat/
+   https://rudraveer.com/shapes-bingo/
+   https://rudraveer.com/tangram-lab/
+
+The tangram-lab folder is a complete static production build. It does not need Node.js, npm, a database, or environment variables on Hostinger.
+
+updated-header.html is included outside public_html as a reusable reference snippet. The live pages inside public_html already contain the updated four-link header.

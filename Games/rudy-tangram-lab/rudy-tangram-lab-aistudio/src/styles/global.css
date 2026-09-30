@@ -1,0 +1,70 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+
+body {
+  font-family: 'Outfit', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow-x: hidden;
+}
+
+@media (max-width: 680px) {
+  #root { min-width: 0; width: 100%; }
+  #root > div { padding: 12px; min-width: 0; }
+  #root header h1 { font-size: 1.25rem; line-height: 1.15; }
+  #root header > div:last-child { display: grid; grid-template-columns: 1fr; width: 100%; }
+  #root header > div:last-child > div { min-width: 0; width: 100%; }
+  #root main, #root main > div { min-width: 0; max-width: 100%; }
+  #root main > div:nth-child(2) > div { flex-wrap: wrap; }
+}
+
+/* Rounded, bright, custom playroom scrollbars if any container overflows */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(244, 244, 245, 0.5);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.6);
+}
+
+/* Translucent layer overlay blending */
+.mix-blend-multiply {
+  mix-blend-mode: multiply;
+}
+
+.mix-blend-screen {
+  mix-blend-mode: screen;
+}
+
+.mix-blend-overlay {
+  mix-blend-mode: overlay;
+}
+
+/* Interactive custom card styling */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

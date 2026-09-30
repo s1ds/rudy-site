@@ -1,0 +1,6 @@
+{
+  "name": "Rudy Tangram Lab",
+  "description": "A playful, educational geometry and shape-matching game features 4 modes: Free Play, Shape Match, Classic Tangrams, and an glowing Light Box mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
